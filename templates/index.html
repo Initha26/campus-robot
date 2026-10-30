@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1722">
+<title>{{ robot_name }}</title>
+<style>
+  :root { --ink:#0f1722; --panel:#18232f; --line:#2a3947; --text:#e8eef4; --muted:#8fa1b3; --eye:#ffd479; --accent:#5fd0c5; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; margin:0; background:var(--ink); color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overflow:hidden; }
+  main { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5vh; padding:16px; }
+
+  .face { display:flex; flex-direction:column; align-items:center; gap:7vh; }
+  .eyes { display:flex; gap:12vmin; }
+  .eye { width:20vmin; height:20vmin; max-width:150px; max-height:150px; background:var(--eye); border-radius:50%;
+    transition:transform .25s, box-shadow .25s; animation:blink 5s infinite; }
+  .mouth { width:16vmin; height:1.6vmin; background:var(--eye); border-radius:2vmin; transition:transform .2s; }
+  .state-listening .eye { transform:scale(1.12); box-shadow:0 0 0 10px rgba(95,208,197,.25); }
+  .state-thinking .eye { animation:look 1.2s infinite ease-in-out; }
+  .state-speaking .mouth { animation:talk .35s infinite alternate; }
+  @keyframes blink { 0%,92%,100% { transform:scaleY(1);} 95% { transform:scaleY(.08);} }
+  @keyframes look { 0%,100% { transform:translateX(-8px);} 50% { transform:translateX(8px);} }
+  @keyframes talk { from { transform:scaleY(1) scaleX(.9);} to { transform:scaleY(5) scaleX(1.1);} }
+  @media (prefers-reduced-motion: reduce) { .eye,.mouth { animation:none !important; } }
+
+  .caption { min-height:6.5em; width:min(640px,92vw); text-align:center; }
+  .heard { color:var(--muted); font-size:.95rem; min-height:1.4em; }
+  .said { font-size:1.2rem; line-height:1.45; margin-top:.4em; }
+  .status { color:var(--muted); font-size:.9rem; }
+
+  button { font:inherit; color:var(--text); background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:14px 22px; cursor:pointer; }
+  button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  button.primary { background:var(--accent); color:#06231f; border-color:var(--accent); font-weight:600; font-size:1.1rem; padding:16px 34px; }
+  #talk { display:none; }
+
+  #gear { position:fixed; right:10px; bottom:10px; padding:8px 12px; opacity:.35; font-size:.85rem; }
+  #gear:hover,#gear:focus { opacity:1; }
+
+  #start { position:fixed; inset:0; background:var(--ink); z-index:5; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; text-align:center; padding:20px; }
+  #start h1 { margin:0; font-size:2rem; }
+  #start p { margin:0; color:var(--muted); max-width:34ch; }
+
+  #settings { position:fixed; inset:0; background:rgba(5,9,14,.82); z-index:10; display:none; align-items:center; justify-content:center; padding:12px; }
+  #settings .box { background:var(--panel); border:1px solid var(--line); border-radius:16px; width:min(560px,100%);
+    max-height:94vh; overflow:auto; padding:20px; display:grid; gap:14px; }
+  #settings h2 { margin:0; font-size:1.2rem; }
+  label { display:grid; gap:6px; font-size:.9rem; color:var(--muted); }
+  select,input,textarea { font:inherit; color:var(--text); background:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px; width:100%; }
+  textarea { min-height:90px; resize:vertical; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .row > * { flex:1; }
+</style>
+</head>
+<body>
+<main id="app" class="state-idle">
+  <div class="face" aria-hidden="true">
+    <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+    <div class="mouth"></div>
+  </div>
+  <div class="caption" aria-live="polite">
+    <div class="heard" id="heard"></div>
+    <div class="said" id="said"></div>
+  </div>
+  <div class="status" id="status"></div>
+  <button id="talk" class="primary">Hold to talk</button>
+</main>
+
+<div id="start">
+  <h1>{{ robot_name }}</h1>
+  <p>Tap once to wake the robot. The microphone and speaker start after this tap.</p>
+  <button id="startBtn" class="primary">Wake up</button>
+</div>
+
+<button id="gear" aria-label="Settings">Settings</button>
+
+<div id="settings" role="dialog" aria-modal="true" aria-label="Robot settings">
+  <div class="box">
+    <h2>Robot settings</h2>
+    <label>Voice
+      <select id="voice"></select>
+    </label>
+    <div class="row">
+      <label>Speed <input id="rate" type="range" min="0.6" max="1.5" step="0.05"></label>
+      <label>Pitch <input id="pitch" type="range" min="0.5" max="1.8" step="0.05"></label>
+    </div>
+    <div class="row">
+      <label>Listening language
+        <select id="lang">
+          <option value="en-IN">English (India)</option>
+          <option value="ta-IN">Tamil</option>
+          <option value="en-US">English (US)</option>
+        </select>
+      </label>
+      <label>Listening mode
+        <select id="mode">
+          <option value="auto">Always listening</option>
+          <option value="tap">Hold button to talk</option>
+        </select>
+      </label>
+    </div>
+    <label>Introduction (said when someone asks "who are you?")
+      <textarea id="intro"></textarea>
+    </label>
+    <label>Start-up speech (said once after waking)
+      <textarea id="startup"></textarea>
+    </label>
+    <div class="row">
+      <button id="test">Test voice</button>
+      <button id="save" class="primary">Save and close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULTS = {
+  intro: {{ default_intro|tojson }},
+  startup: {{ default_startup|tojson }},
+  voiceURI: "", rate: 1, pitch: 1, lang: "en-IN", mode: "auto"
+};
+const $ = id => document.getElementById(id);
+const store = {
+  get(k) { try { const v = localStorage.getItem("robot_" + k); return v === null ? DEFAULTS[k] : JSON.parse(v); } catch (e) { return DEFAULTS[k]; } },
+  set(k, v) { try { localStorage.setItem("robot_" + k, JSON.stringify(v)); } catch (e) {} }
+};
+
+const S = { started:false, busy:false, listening:false, history:[], wakeLock:null };
+const synth = window.speechSynthesis;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+
+function setState(s, text) {
+  $("app").className = "state-" + s;
+  $("status").textContent = text || "";
+}
+
+/* ---------- speech output ---------- */
+let voices = [];
+function loadVoices() {
+  voices = synth.getVoices();
+  const sel = $("voice");
+  const current = store.get("voiceURI");
+  sel.innerHTML = '<option value="">Default voice</option>';
+  voices.forEach(v => {
+    const o = document.createElement("option");
+    o.value = v.voiceURI;
+    o.textContent = v.name + " (" + v.lang + ")";
+    if (v.voiceURI === current) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
+
+function speak(text) {
+  return new Promise(resolve => {
+    if (!synth || !text) return resolve();
+    synth.cancel();
+    const parts = text.match(/[^.!?\u0BF7]+[.!?]*/g) || [text];   // short chunks avoid Chrome's long-text cut-off
+    const chosen = voices.find(v => v.voiceURI === store.get("voiceURI"));
+    let i = 0;
+    const next = () => {
+      if (i >= parts.length) return resolve();
+      const u = new SpeechSynthesisUtterance(parts[i++].trim());
+      if (chosen) { u.voice = chosen; u.lang = chosen.lang; }
+      u.rate = Number(store.get("rate")); u.pitch = Number(store.get("pitch"));
+      u.onend = next; u.onerror = next;
+      synth.speak(u);
+    };
+    next();
+  });
+}
+
+/* ---------- speech input ---------- */
+function initRecognition() {
+  if (!SR) { setState("idle", "This browser has no speech recognition. Use Chrome on Android."); return false; }
+  rec = new SR();
+  rec.lang = store.get("lang");
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.onstart = () => { S.listening = true; if (!S.busy) setState("listening", "Listening"); };
+  rec.onresult = e => {
+    const text = e.results[0][0].transcript.trim();
+    if (text) handle(text);
+  };
+  rec.onerror = e => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed")
+      setState("idle", "Microphone blocked. Allow microphone access for this site in Chrome.");
+  };
+  rec.onend = () => {
+    S.listening = false;
+    if (S.started && !S.busy && store.get("mode") === "auto") setTimeout(listen, 350);
+    else if (!S.busy) setState("idle", store.get("mode") === "tap" ? "Hold the button and speak" : "");
+  };
+  return true;
+}
+function listen() {
+  if (!rec || S.listening || S.busy || !S.started) return;
+  rec.lang = store.get("lang");
+  try { rec.start(); } catch (e) {}
+}
+function stopListening() { try { rec && rec.stop(); } catch (e) {} }
+
+/* ---------- conversation ---------- */
+async function handle(text) {
+  S.busy = true;
+  stopListening();
+  $("heard").textContent = "You: " + text;
+  setState("thinking", "Thinking");
+  let reply = "";
+  try {
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, history: S.history, intro: store.get("intro") })
+    });
+    reply = (await r.json()).reply || "";
+  } catch (e) {
+    reply = "I cannot reach the internet right now. Please check my connection.";
+  }
+  if (reply) {
+    S.history.push({ role: "user", content: text }, { role: "assistant", content: reply });
+    S.history = S.history.slice(-8);
+    $("said").textContent = reply;
+    setState("speaking", "");
+    await speak(reply);
+  }
+  S.busy = false;
+  setState("idle", "");
+  if (store.get("mode") === "auto") setTimeout(listen, 400);
+}
+
+/* ---------- start / keep awake ---------- */
+async function keepAwake() {
+  try { if ("wakeLock" in navigator) S.wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.started) keepAwake(); });
+
+$("startBtn").onclick = async () => {
+  $("start").style.display = "none";
+  try { await document.documentElement.requestFullscreen(); } catch (e) {}
+  keepAwake();
+  S.started = true;
+  const ok = initRecognition();
+  applyMode();
+  const startup = store.get("startup");
+  if (startup) { S.busy = true; setState("speaking", ""); $("said").textContent = startup; await speak(startup); S.busy = false; setState("idle", ""); }
+  if (ok && store.get("mode") === "auto") listen();
+};
+
+function applyMode() {
+  const tap = store.get("mode") === "tap";
+  $("talk").style.display = tap ? "block" : "none";
+  if (tap) setState("idle", "Hold the button and speak");
+}
+const talkStart = e => { e.preventDefault(); if (!S.busy) { synth && synth.cancel(); listen(); } };
+const talkEnd = e => { e.preventDefault(); stopListening(); };
+$("talk").addEventListener("pointerdown", talkStart);
+$("talk").addEventListener("pointerup", talkEnd);
+$("talk").addEventListener("pointercancel", talkEnd);
+
+/* ---------- settings (PIN protected) ---------- */
+$("gear").onclick = async () => {
+  const pin = prompt("Enter admin PIN");
+  if (pin === null) return;
+  let ok = false;
+  try { ok = (await (await fetch("/api/pin", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ pin }) })).json()).ok; } catch (e) {}
+  if (!ok) { alert("Wrong PIN"); return; }
+  stopListening();
+  $("rate").value = store.get("rate"); $("pitch").value = store.get("pitch");
+  $("lang").value = store.get("lang"); $("mode").value = store.get("mode");
+  $("intro").value = store.get("intro"); $("startup").value = store.get("startup");
+  loadVoices();
+  $("settings").style.display = "flex";
+};
+$("test").onclick = () => {
+  store.set("voiceURI", $("voice").value); store.set("rate", $("rate").value); store.set("pitch", $("pitch").value);
+  speak("Hello! This is how I sound now.");
+};
+$("save").onclick = () => {
+  ["voiceURI:voice", "rate:rate", "pitch:pitch", "lang:lang", "mode:mode", "intro:intro", "startup:startup"]
+    .forEach(p => { const [k, id] = p.split(":"); store.set(k, $(id).value); });
+  $("settings").style.display = "none";
+  applyMode();
+  if (S.started && store.get("mode") === "auto") listen();
+};
+</script>
+</body>
+</html>
