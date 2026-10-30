@@ -15,7 +15,7 @@ load_dotenv()
 ROBOT_NAME = os.getenv("ROBOT_NAME", "Zero")
 COLLEGE = os.getenv("COLLEGE_NAME", "Sree Sakthi Engineering College, Coimbatore")
 ADMIN_PIN = os.getenv("ADMIN_PIN", "4321")
-LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
+LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-20b")
 
 DEFAULT_INTRO = (
     "Hello! I am {name}, a robot built by the Artificial Intelligence and Data Science "
@@ -37,10 +37,10 @@ PEOPLE = [
          pattern=r"chairman|dharmalingam",
          line="our respected Chairman. It is a great honour to have you with us, sir."),
     dict(role="Joint Correspondent", name="Mr. K. Akileshwaran",
-         pattern=r"joint\W+correspondent|akileshwaran",
+         pattern=r"joint\W+correspond\w*|akileshwaran",
          line="our Joint Correspondent. It is wonderful to see you again, sir."),
     dict(role="Correspondent", name="Dr. S. Karthikeyan",
-         pattern=r"correspondent|karthikeyan",
+         pattern=r"correspond(ent|ing|ant|ence)|karthikeyan",
          line="our Correspondent. It is a privilege to welcome you again, sir."),
     dict(role="Joint Secretary", name="Mrs. Vidhya",
          pattern=r"joint\W+secretary|vidhya",
@@ -144,6 +144,15 @@ def system_prompt(person=None):
     return s
 
 
+def find_mentioned(text):
+    """Return the PEOPLE entry whose role/name appears anywhere in the text."""
+    t = text.lower()
+    for p in PEOPLE:
+        if re.search(p["pattern"], t):
+            return p
+    return None
+
+
 _client = None
 
 
@@ -207,8 +216,10 @@ def chat():
     messages.append({"role": "user", "content": text})
 
     try:
+        extra = {"reasoning_effort": "low"} if "gpt-oss" in LLM_MODEL else None
         r = llm().chat.completions.create(
-            model=LLM_MODEL, messages=messages, max_tokens=160, temperature=0.7
+            model=LLM_MODEL, messages=messages, max_tokens=500, temperature=0.7,
+            extra_body=extra,
         )
         reply = (r.choices[0].message.content or "").strip()
         if person and not reply.lower().startswith(("good", "hello", "hi", "welcome")):
@@ -216,9 +227,13 @@ def chat():
         return jsonify(reply=reply or "Sorry, could you say that again?", kind="chat")
     except Exception as e:  # network, quota, bad key ...
         print("LLM error:", repr(e))
-        fallback = greeting_for(person) if person else (
-            "Sorry, I am having trouble thinking right now. Please ask me again in a moment."
-        )
+        who = find_mentioned(text) if re.search(r"\bwho\b|name of", text, re.I) else None
+        if person:
+            fallback = greeting_for(person)
+        elif who:
+            fallback = f"The {who['role']} of our college is {who['name']}."
+        else:
+            fallback = "Sorry, I am having trouble thinking right now. Please ask me again in a moment."
         return jsonify(reply=fallback, kind="error")
 
 
