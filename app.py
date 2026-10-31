@@ -165,6 +165,9 @@ NON TECHNICAL EVENTS (7)
 ON STAGE AND OFF STAGE EVENTS (12), organised by S&H
 - Solo Singing, Solo Dance, Group Dance, Skit and Mime, Classical Dance
 - Rangoli and Mehandi, Face Painting, Craft and Nail Art, Short Film, Reels, Vegetable Carving, Fireless Cooking
+
+CURRENT AFFAIRS
+- The current Chief Minister of Tamil Nadu is C. Joseph Vijay (since 10 May 2026).
  
 NOT IN THE BROCHURE (do not guess): event timings, room or hall locations, prize amounts, contact numbers, registration deadline, rules.
 For these, politely say you do not have that information and ask the person to check at the help desk or the registration desk.
