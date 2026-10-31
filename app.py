@@ -71,13 +71,40 @@ PEOPLE = [
          line="the Head of our IT and Artificial Intelligence and Data Science departments. "
               "It is always a joy to see you, sir."),
     dict(role="Assistant Professor, IT and AI&DS", name="Ms. P. Rithika",
-         pattern=r"assistant\W+professor|rithika",
+         pattern=r"\brithika\b",
          line="our Assistant Professor from the IT and AI and Data Science department. "
               "Lovely to see you again, madam."),
+    dict(role="Assistant Professor", name="Vinothini S",
+         pattern=r"vin(o|oa)thini|vinodhini",
+         line="one of our Assistant Professors. It is lovely to see you again."),
+    dict(role="Assistant Professor", name="Rajesh Kumar MS",
+         pattern=r"\brajesh\b",
+         line="one of our Assistant Professors. It is lovely to see you again."),
+    dict(role="Assistant Professor", name="Sanjivgandhi H",
+         pattern=r"sanji(v|e)v?\W?gandhi|\bgandhi\b|\bsanji(v|e)v\b",
+         line="one of our Assistant Professors. It is lovely to see you again."),
+    dict(role="Assistant Professor", name="Thirumurugan K",
+         pattern=r"th?irumurugan|\bmurugan\b",
+         line="one of our Assistant Professors. It is lovely to see you again."),
+    dict(role="Assistant Professor", name="Arivaarndhani I",
+         pattern=r"arivaarndhani|arivarndhani|arivarnthani|arivaarnthani|arivu\w*",
+         line="one of our Assistant Professors. It is lovely to see you again."),
+    dict(role="Assistant Professor", name="Ansha K",
+         pattern=r"\b(ansha|amsha|aansha)\b",
+         line="one of our Assistant Professors. It is lovely to see you again."),
+    dict(role="Assistant Professor", name="Khavya K",
+         pattern=r"\b(khavya|kavya|kaavya)\b",
+         line="one of our Assistant Professors. It is lovely to see you again."),
+    dict(role="Lab Administrator", name="Swetha",
+         pattern=r"\b(swetha|sweta|shwetha|swedha)\b|lab\W+admin\w*",
+         line="our Lab Administrator. It is lovely to see you again."),
     dict(role="Third-year AI&DS student", name="Initha Bency",
          pattern=r"initha|bency",
          line="a third-year student of the AI and Data Science department. "
               "I am so happy to see you here."),
+    dict(role="Assistant Professor", name="", generic=True,
+         pattern=r"assistant\W+professor",
+         line="our respected Assistant Professor."),
 ]
 
 CLAIM = re.compile(r"\b(i am|i'm|im|i m|this is|myself|my name is|it is|it's|its)\b", re.I)
@@ -115,11 +142,13 @@ def time_of_day():
 
 
 def greeting_for(p):
+    if p.get("generic"):
+        return f"{time_of_day()}! Welcome, respected {p['role']}. It is lovely to see you here."
     return f"{time_of_day()}, {p['name']}! You are {p['line']}"
 
 
 def directory_text():
-    return "\n".join(f"- {p['role']}: {p['name']}" for p in PEOPLE if p["role"] != "Dean")
+    return "\n".join(f"- {p['role']}: {p['name']}" for p in PEOPLE if p["role"] != "Dean" and not p.get("generic"))
 
 
 # ---------------------------------------------------------------------------
@@ -195,7 +224,7 @@ def system_prompt(person=None):
     if person:
         hon = "madam" if "madam" in person["line"] else ("sir" if "sir" in person["line"] else "")
         s += (
-            f"\nThe person speaking says they are {person['name']}, {person['role']}. "
+            f"\nThe person speaking says they are {person['name'] or 'an'} {person['role']}. "
             "Greet them warmly by name and title as if you already know them, then answer."
             + (f" Address this person as {hon}." if hon else " Do not use sir or madam for this person.")
         )
@@ -206,7 +235,7 @@ def find_mentioned(text):
     """Return the PEOPLE entry whose role/name appears anywhere in the text."""
     t = text.lower()
     for p in PEOPLE:
-        if re.search(p["pattern"], t):
+        if not p.get("generic") and re.search(p["pattern"], t):
             return p
     return None
 
