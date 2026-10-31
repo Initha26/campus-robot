@@ -12,7 +12,7 @@ from openai import OpenAI
 
 load_dotenv()
 
-ROBOT_NAME = os.getenv("ROBOT_NAME", "Zero")
+ROBOT_NAME = os.getenv("ROBOT_NAME", "OPTIMUS")
 COLLEGE = os.getenv("COLLEGE_NAME", "Sree Sakthi Engineering College, Coimbatore")
 ADMIN_PIN = os.getenv("ADMIN_PIN", "4321")
 LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-oss-20b")
